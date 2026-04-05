@@ -1,0 +1,11 @@
+# .gitignore
+
+# Conda / Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# We don't add the conda env to git
+# Conda envs live in your conda installation, not in the project folder
+# unlike venv which creates a local folder
