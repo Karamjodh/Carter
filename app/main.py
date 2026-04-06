@@ -1,11 +1,21 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.config import settings
+from app.db.session import init_db
 from app.api.routes import health
 
+@asynccontextmanager
+async def lifespan(app : FastAPI):
+    await init_db()
+    print("Database Ready")
+    yield
+    print("Shutting down...")
+    
 app = FastAPI(
     title = settings.APP_NAME,
     description = "AI-powered customer analytics platform",
     version = "1.0.0",
+    lifespan = lifespan,
 )
 app.include_router(health.router, prefix = "/api/v1", tags = ["Health"])
 
