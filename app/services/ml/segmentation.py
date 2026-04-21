@@ -72,7 +72,7 @@ def _build_profiles(df_rfm : pd.DataFrame, n_clusters : int) -> list :
             label = f"Segment {c + 1}"
         profiles.append({
             "cluster_id" : c,
-            "labels" : label,
+            "label" : label,
             "size" : int(len(subset)),
             "pct_of_customers" : round(float(pct),1),
             "avg_recency_days" : round(float(r_mean),1),

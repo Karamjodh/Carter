@@ -41,7 +41,7 @@ def run_preprocessing(file_bytes: bytes, content_type : str) -> PreprocessingRes
     reverse_map = {user_col : canonical for canonical, user_col in column_map.items()}
     df.rename(columns = reverse_map, inplace = True)
     # Fix data types
-    df["date"] = pd.to_datetime(df["date"], infer_datetime_format = True, errors = "coerce")
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df["quantity"] = pd.to_numeric(df["quantity"], errors = "coerce")
     df["price"] = pd.to_numeric(df["price"], errors = "coerce")
     df["customer_id"] = df["customer_id"].astype(str).str.strip()
@@ -128,28 +128,41 @@ def _validate_required_columns(column_map : dict):
             f"customer ID, quantity, price, and date."
         )
 
-def _build_rfm(df : pd.DataFrame) -> pd.DataFrame:
+def _build_rfm(df: pd.DataFrame) -> pd.DataFrame:
     """
     Builds the RFM feature table — one row per customer.
 
     Recency:   days since last purchase (lower = more recent = better)
     Frequency: number of unique transactions
     Monetary:  total spend
-
-    Also adds scaled versions (mean=0, std=1) for the clustering algorithm.
-    Clustering algorithms are sensitive to scale — without scaling,
-    a customer with $10,000 spend would dominate over recency/frequency.
     """
-    snapshot_date = df["date"].max() + pd.Timedelta(days = 1)
+    snapshot_date = df["date"].max() + pd.Timedelta(days=1)
     freq_col = "transaction_id" if "transaction_id" in df.columns else "date"
+
+    # Calculate frequency and monetary first
     df_rfm = df.groupby("customer_id").agg(
-        recency = ("date", lambda x : (snapshot_date - x.max()).days),
-        frequency = (freq_col, "nunique"),
-        monetary = ("revenue", sum),
-        ).reset_index()
+        frequency = (freq_col,  "nunique"),
+        monetary  = ("revenue", "sum"),
+    ).reset_index()
+
+    # Calculate recency separately and merge in
+    # This avoids the pandas lambda deprecation warning
+    last_purchase = (
+        df.groupby("customer_id")["date"]
+        .max()
+        .reset_index()
+        .rename(columns={"date": "last_purchase_date"})
+    )
+
+    df_rfm = df_rfm.merge(last_purchase, on="customer_id", how="left")
+    df_rfm["recency"] = (snapshot_date - df_rfm["last_purchase_date"]).dt.days
+    df_rfm.drop(columns=["last_purchase_date"], inplace=True)
+
+    # Scale features for clustering
     scaler = StandardScaler()
-    scaled = scaler.fit_transform(df_rfm[["recency","frequency","monetary"]])
+    scaled = scaler.fit_transform(df_rfm[["recency", "frequency", "monetary"]])
     df_rfm[["recency_scaled", "frequency_scaled", "monetary_scaled"]] = scaled
+
     return df_rfm
 
 def _build_basket(df : pd.DataFrame) -> pd.DataFrame:
