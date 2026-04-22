@@ -55,12 +55,12 @@ def _build_profiles(df_rfm : pd.DataFrame, n_clusters : int) -> list :
     overall_f = df_rfm["frequency"].mean()
     overall_m = df_rfm["monetary"].mean()
     for c in range(n_clusters):
-        subset = df_rfm[df_rfm["clusters"] == c]
+        subset = df_rfm[df_rfm["clusters"] == c] # madafka df_rfm["clusters"] == c is a condition it will not return dataframe values
         r_mean = subset["recency"].mean()
         f_mean = subset["frequency"].mean()
         m_mean = subset["monetary"].mean()
         pct = len(subset)/len(df_rfm) * 100
-        if r_mean < overall_r and f_mean >= overall_f:
+        if r_mean < overall_r and f_mean >= overall_f: # elif based labelling of clusters
             label = "Champions"
         elif r_mean < overall_r and m_mean >= overall_m:
             label = "Loyal High-Value"
@@ -70,7 +70,7 @@ def _build_profiles(df_rfm : pd.DataFrame, n_clusters : int) -> list :
             label = "Low Engagement"
         else:
             label = f"Segment {c + 1}"
-        profiles.append({
+        profiles.append({ # profile of the cluster with all these features
             "cluster_id" : c,
             "label" : label,
             "size" : int(len(subset)),
